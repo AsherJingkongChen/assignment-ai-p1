@@ -1,0 +1,6 @@
+task_0_0.txt|{"ini_cost": 15, "best_cost": 9, "locations": [[1,2]]}
+task_0_1.txt|{"best_cost": 7, "locations": [[2,1]]}
+task_1_0.txt|{"ini_cost": 9, "best_cost": 7, "locations": [[0,1],[1,2]]}
+task_1_1.txt|{"best_cost": 5, "locations": [[1,0],[2,1]]}
+task_2_1.txt|{"best_cost": -1, "locations": []}
+task_3_1.txt|{"best_cost": -1, "locations": []}
