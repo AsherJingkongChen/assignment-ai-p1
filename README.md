@@ -1,4 +1,4 @@
-# AI Homework P1
+# Assignment AI-P1
 > Naive Schotastic Gradient Descent
 
 ## Usage
