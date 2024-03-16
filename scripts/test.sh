@@ -3,7 +3,7 @@
 set -e
 
 run_tests() {
-  (cat src/*.py > tests/submission.py) || (
+  (cp src/submission.py tests/submission.py) || (
     echo "Usage: ./scripts/test.sh" && return 1
   )
   cd tests
