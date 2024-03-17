@@ -180,7 +180,11 @@ class GLS_Task(_Task):
 class RRGLS_Task(_Task):
     "Random-Restart Greedy Local Search Task"
     target_restroom_locations_count: int
-    restart_count: int = 0
+    restart_count: int
+
+    def __post_init__(self):
+        if not self.restart_count:
+            self.restart_count = 3e3
 
     def resolve(self) -> TaskResult:
         best_task_result = min(
@@ -233,7 +237,7 @@ class Task(_Task):
             return RRGLS_Task(
                 **task.__dict__,
                 target_restroom_locations_count=int(body[3]),
-                restart_count=int(body[4]) if len(body) > 4 else 1e4,
+                restart_count=int(body[4]) if len(body) > 4 else None,
             )
         else:
             return task
