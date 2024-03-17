@@ -16,12 +16,13 @@ if task_content:
 
 from dataclasses import dataclass
 from typing_extensions import NamedTuple, TypedDict
-from itertools import product as cartesian_product
 
 
 class GridVector(NamedTuple):
     v: int
+    "Vertical Scalar"
     h: int
+    "Horizontal Scalar"
 
     @property
     def at_center(self) -> "GridVector":
@@ -43,11 +44,21 @@ class GridVector(NamedTuple):
     def at_up(self) -> "GridVector":
         return GridVector(v=self.v - 1, h=self.h)
 
+    @property
+    def as_grid(self) -> tuple["GridVector"]:
+        from itertools import product as cartesian_product
+
+        return tuple(
+            GridVector(v=v, h=h)
+            for v, h in cartesian_product(range(self.v), range(self.h))
+        )
+
     @staticmethod
     def from_str(loc_str: str) -> "GridVector":
         return GridVector(*map(int, loc_str.split(",")[:2]))
 
     def l1_distance(self, other: "GridVector") -> int:
+        "L1 Distance (Manhattan Distance)"
         return abs(self.v - other.v) + abs(self.h - other.h)
 
     def within_grid(self, location: "GridVector") -> bool:
@@ -68,7 +79,7 @@ class TaskResult(TypedDict):
 
 @dataclass
 class _Task:
-    "Base Task"
+    "Basic Task"
     grid_size: GridVector
     kind: int
     playground_locations: tuple[GridVector]
@@ -95,22 +106,22 @@ class GLS_Task(_Task):
     "Greedy Local Search Task"
     initial_restroom_locations: tuple[GridVector]
 
+    def check_restroom_locations(self, restroom_locations: tuple[GridVector]) -> bool:
+        "resolve - utility"
+        unique_restroom_locations = set(restroom_locations)
+        return len(unique_restroom_locations) == len(restroom_locations) and not (
+            unique_restroom_locations & set(self.playground_locations)
+        )
+
     def resolve(self) -> TaskResult:
+        from itertools import product as cartesian_product
+
         def get_cost(restroom_locations: tuple[GridVector]) -> int:
             "resolve - utility"
             return sum(
                 min(map(playground_location.l1_distance, restroom_locations))
                 for playground_location in self.playground_locations
             )
-
-        def check_next_restroom_locations(
-            next_restroom_locations: tuple[GridVector],
-        ) -> bool:
-            "resolve - utility"
-            unique_next_restroom_locations = set(next_restroom_locations)
-            return len(unique_next_restroom_locations) == len(
-                next_restroom_locations
-            ) and not (set(self.playground_locations) & unique_next_restroom_locations)
 
         def step(
             current_cost: int,
@@ -120,7 +131,7 @@ class GLS_Task(_Task):
             next_costs_and_restroom_locations = (
                 (get_cost(next_restroom_locations), next_restroom_locations)
                 for next_restroom_locations in filter(
-                    check_next_restroom_locations,
+                    self.check_restroom_locations,
                     cartesian_product(
                         *(
                             tuple(
@@ -146,9 +157,7 @@ class GLS_Task(_Task):
             for better_restroom_location in better_restroom_locations:
                 if better_restroom_location in self.playground_locations:
                     return
-            if better_cost == current_cost or len(better_restroom_locations) < len(
-                self.initial_restroom_locations
-            ):
+            if better_cost == current_cost:
                 return
             return (better_cost, better_restroom_locations)
 
@@ -169,15 +178,39 @@ class GLS_Task(_Task):
 class RRGLS_Task(_Task):
     "Random-Restart Greedy Local Search Task"
     target_restroom_locations_count: int
-    restart_count: int
+    restart_count: int = 0
 
     def resolve(self) -> TaskResult:
-        return TaskResult(
-            ini_cost=15,
-            best_cost=9,
-            locations=[GridVector(1, 2)],
-            s=str(self),
+        from random import sample as random_sample
+
+        best_task_result = TaskResult(
+            ini_cost=0,
+            best_cost=float("inf"),
+            locations=tuple(),
         )
+
+        restart_count = self.restart_count
+        while restart_count > 0:
+            gls_task = GLS_Task(
+                grid_size=self.grid_size,
+                kind=self.kind,
+                playground_locations=self.playground_locations,
+                initial_restroom_locations=tuple(
+                    random_sample(
+                        self.grid_size.as_grid,
+                        k=self.target_restroom_locations_count,
+                    )
+                ),
+            )
+            if not gls_task.check_restroom_locations(gls_task.initial_restroom_locations):
+                continue
+            gls_task_result = gls_task.resolve()
+            if best_task_result['best_cost'] > gls_task_result['best_cost']:
+                best_task_result = gls_task_result
+            restart_count -= 1
+
+        del best_task_result["ini_cost"]
+        return best_task_result
 
 
 class Task(_Task):
@@ -197,7 +230,7 @@ class Task(_Task):
             return RRGLS_Task(
                 **task.__dict__,
                 target_restroom_locations_count=int(body[3]),
-                restart_count=int(body[4]) if len(body) > 4 else None,
+                restart_count=int(body[4]) if len(body) > 4 else 1e4,
             )
         else:
             return task
