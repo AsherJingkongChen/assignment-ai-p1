@@ -41,7 +41,7 @@ def check_format(i_t, j_t, result):
             #print("error 1")
     
     if int(result['best_cost']) <= 0:
-        if_pass = False
+        is_pass = False
         #print("error 2")
     
     if not result['locations']:
